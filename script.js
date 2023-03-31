@@ -1,102 +1,61 @@
-// Obter elementos HTML
-const canvas = document.getElementById('tela');
-const colorButtons = document.querySelectorAll('.color');
+// Declaração e inicialização de variáveis
+let currentColor = 'black'; // define a cor atual como preto
+let canDraw = false; // define a variável para verificar se é possível desenhar na tela
+let screen = document.querySelector('#tela'); // seleciona o elemento com o id "tela"
+let ctx = screen.getContext('2d'); // define o contexto de renderização 2D da tela
+//Events
 
-// Configurar contexto 2D
-const ctx = canvas.getContext('2d');
-
-// Configurar cor inicial
-let currentColor = 'black';
-
-// Adicionar evento de clique para cada botão de cor
-colorButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        // Remover classe 'active' de todas as cores
-        colorButtons.forEach(b => b.classList.remove('active'));
-
-        // Definir cor atual e adicionar classe 'active' ao botão clicado
-        currentColor = button.getAttribute('data-color');
-        button.classList.add('active');
-    });
+// Event listeners para interação com o usuário
+// Itera sobre todos os elementos com a classe "color" dentro do elemento com a classe "colorArea"
+document.querySelectorAll('.colorArea .color').forEach(item => {
+    item.addEventListener('click', colorClickEvent);// adiciona um evento de clique para cada elemento encontrado
 });
+screen.addEventListener('mousedown', mouseDownEvent); // adiciona um evento de clique do mouse para a tela
+screen.addEventListener('mousemove', mouseMoveEvent); // adiciona um evento de movimento do mouse para a tela
+screen.addEventListener('mouseup', mouseUpEvent); // adiciona um evento de soltura do mouse para a tela
+document.querySelector('.clear').addEventListener('click', clearScreen); // adiciona um evento de clique do botão "clear" para limpar a tela
 
-// Variáveis para controlar desenho de linhas
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
+// Funções para manipulação do desenho
+function colorClickEvent(e) {
+    let color = e.target.getAttribute('data-color');// obtém o valor do atributo "data-color" do elemento clicado
+    currentColor = color;// define a cor atual com o valor obtido
 
-// Lista de pontos desenhados
-let points = [];
+    document.querySelector('.color.active').classList.remove('active'); // remove a classe "active" do elemento de cor ativa atualmente
+    e.target.classList.add('active'); // adiciona a classe "active" ao elemento clicado
 
-// Adicionar eventos de mousedown, mousemove e mouseup para desenhar linhas contínuas
-canvas.addEventListener('mousedown', event => {
-    isDrawing = true;
-    lastX = event.offsetX;
-    lastY = event.offsetY;
-
-    // Limpar lista de pontos se usuário começar a desenhar novamente
-    if (points.length === 0) {
-        points.push([]);
+};
+function mouseDownEvent(e) {
+    canDraw = true  // define a variável como verdadeira para permitir o desenho na tela
+    mouseX = e.pageX - screen.offsetLeft;   // define a posição X inicial do mouse em relação à tela
+    mouseY = e.pageY - screen.offsetTop;    // define a posição X inicial do mouse em relação à tela
+}
+function mouseMoveEvent(e) {
+    if (canDraw) {  // verifica se é possível desenhar na tela
+        draw(e.pageX, e.pageY); // chama a função de desenho, passando a posição atual do mouse como parâmetro
     }
-});
+}
+function mouseUpEvent() {
+    canDraw = false;    // define a variável como falsa para impedir o desenho na tela
+}
 
-canvas.addEventListener('mousemove', event => {
-    if (isDrawing) {
-        const x = event.offsetX;
-        const y = event.offsetY;
+function draw(x, y) {
+    let pointX = x - screen.offsetLeft;  // define a posição X atual do mouse em relação à tela
+    let pointY = y - screen.offsetTop;  // define a posição Y atual do mouse em relação à tela
 
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = 10;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(x, y);
-        ctx.stroke();
+    ctx.beginPath();  // inicia um novo caminho de desenho
+    ctx.lineWidth = 5;  // define a largura da linha para 5 pixels
+    ctx.lineJoin = "round";  // define o estilo das junções de linha como arredondado
+    ctx.moveTo(mouseX, mouseY);  // move o ponto inicial do caminho para as coordenadas (mouseX, mouseY)
+    ctx.lineTo(pointX, pointY);  // adiciona uma linha do ponto atual do caminho para as coordenadas (pointX, pointY)
+    ctx.closePath();  // fecha o caminho de desenho atual
+    ctx.strokeStyle = currentColor;  // define a cor do traço que será usada para desenhar
+    ctx.stroke();  // desenha o caminho de desenho atual
 
-        // Adicionar pontos à lista
-        const currentSet = points[points.length - 1];
-        currentSet.push({ x, y, color: currentColor });
+    mouseX = pointX;  // atualiza a coordenada X do mouse com a posição atual do mouse em relação à tela
+    mouseY = pointY;  // atualiza a coordenada Y do mouse com a posição atual do mouse em relação à tela
+}
 
-        lastX = x;
-        lastY = y;
-    }
-});
-
-canvas.addEventListener('mouseup', () => {
-    isDrawing = false;
-
-    // Adicionar novo conjunto de pontos à lista
-    points.push([]);
-});
-
-// Adicionar evento de teclado para desfazer (Ctrl + Z)
-document.addEventListener('keydown', event => {
-    if (event.ctrlKey && event.key === 'z') {
-        event.preventDefault();
-
-        // Remover último conjunto de pontos da lista
-        const lastSet = points.pop();
-
-        // Limpar canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Desenhar pontos restantes
-        points.forEach(set => {
-            ctx.strokeStyle = set[0].color;
-            ctx.beginPath();
-            set.forEach((point, index) => {
-                if (index === 0) {
-                    ctx.moveTo(point.x, point.y);
-                } else {
-                    ctx.lineTo(point.x, point.y);
-                }
-            });
-            ctx.stroke();
-        });
-
-        // Adicionar conjunto removido de volta à lista
-        if (lastSet) {
-            points.push(lastSet);
-        }
-    }
-});
+function clearScreen() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);  // redefine a transformação do contexto de renderização para sua matriz de identidade
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);  // limpa todo o conteúdo do canvas (área de desenho)
+}
